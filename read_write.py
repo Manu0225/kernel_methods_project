@@ -8,7 +8,7 @@ def load_X100(path):
 
 def load_labels(path):
 	# need to ignore the first col
-	return 2*np.loadtxt(path, delimiter=",", skiprows=1)[:, 1]-1
+	return 2 * np.loadtxt(path, delimiter=",", skiprows=1)[:, 1, None] - 1
 
 
 def write(Y, path, offset):
@@ -30,7 +30,7 @@ def write(Y, path, offset):
 	n, _ = Y.shape
 	write_array = np.block([
 		[np.arange(n) + offset],
-		[(1+Y.squeeze())/2]
+		[(1 + Y.squeeze()) / 2]
 	]).astype(np.int32).T
 
 	np.savetxt(path, write_array, fmt="%.0f", delimiter=",", header="Id,Bound", comments="")

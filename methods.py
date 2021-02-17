@@ -35,13 +35,13 @@ class KernelRidgeRegression(Method):
     def learn(self, X, Y):
         self.X = X
         K = self.kernel.K(X, X)
-        n, d = K
+        n, _ = K.shape
         assert Y.shape == (n, 1)
 
         self.alpha = np.linalg.solve(K + self.reg_val * n * np.identity(n), Y)
         assert self.alpha.shape == (n, 1)
 
-def KernelLogisticRegression(Method):
+class KernelLogisticRegression(Method):
     def __init__(self, kernel, reg_val):
         self.kernel = kernel
         self.reg_val = reg_val
@@ -49,14 +49,19 @@ def KernelLogisticRegression(Method):
     def learn(self, X, Y):
         self.X = X
         K = self.kernel.K(X, X)
-        n, d = K
+        n, _ = K.shape
         assert Y.shape == (n, 1)
         
         alpha = cp.Variable(n)
-        objective = cp.Minimize((1/n) * cp.sum(cp.logistic(- cp.multiply(Y,  (K @ alpha)))) + (self.reg_val/2) * cp.quad_form(alpha, K))
+        objective = cp.Minimize(
+            (1/n) * cp.sum(cp.logistic(- cp.multiply(Y.squeeze(),  (K @ alpha)))) +
+            (self.reg_val/2) * cp.quad_form(alpha, K)
+        )
         prob = cp.Problem(objective)
-        prob.solve()
+        prob.solve(verbose=True)
 
-        self.alpha = alpha.value
+        self.alpha = alpha.value[:, None]
 
 
+def accuracy(y_true, y_pred):
+    return np.sum(y_true == y_pred)/len(y_true)
