@@ -28,7 +28,7 @@ class Method(ABC):
         return h
 
 class KernelRidgeRegression(Method):
-    def __init__(self, kernel, reg_val):
+    def __init__(self, kernel, reg_val=0.1):
         self.kernel = kernel
         self.reg_val = reg_val
 
@@ -42,7 +42,7 @@ class KernelRidgeRegression(Method):
         assert self.alpha.shape == (n, 1)
 
 class KernelLogisticRegression(Method):
-    def __init__(self, kernel, reg_val):
+    def __init__(self, kernel, reg_val=0.1):
         self.kernel = kernel
         self.reg_val = reg_val
 

@@ -20,7 +20,7 @@ class Linear(Kernel):
 		return X @ X_prime.T
 
 class Gaussian(Kernel):
-	def __init__(self, alpha):
+	def __init__(self, alpha=0.1):
 		super(Gaussian, self).__init__()
 		self.alpha = alpha
 
