@@ -5,8 +5,8 @@ gen = np.random.default_rng()
 import methods
 import kernels
 
-n = 100
-d = 5
+n = 2000
+d = 100
 
 @pytest.fixture
 def x():
