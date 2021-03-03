@@ -4,8 +4,11 @@ import numpy as np
 
 class KernelRidgeRegression(Method):
 	def __init__(self, kernel, reg_val=0.1):
+		super(KernelRidgeRegression, self).__init__()
+		self.X = None
 		self.kernel = kernel
 		self.reg_val = reg_val
+		self.alpha = None
 
 	def learn(self, X, Y):
 		self.X = X

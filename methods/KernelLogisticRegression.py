@@ -74,8 +74,11 @@ def make_kernel_logistic_regression_funcs(K, Y, reg_val):
 
 class KernelLogisticRegression(Method):
 	def __init__(self, kernel, reg_val=0.1):
+		super(KernelLogisticRegression, self).__init__()
+		self.X = None
 		self.kernel = kernel
 		self.reg_val = reg_val
+		self.alpha = None
 
 	def learn(self, X, Y, tol=1e-6):
 		self.X = X

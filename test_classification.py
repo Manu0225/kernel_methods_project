@@ -1,10 +1,10 @@
 import pytest
 import numpy as np
+import methods
+import kernels
 
 gen = np.random
 
-import methods
-import kernels
 
 n = 2000
 d = 100
@@ -32,6 +32,7 @@ y_train, y_test = y, y
 TEST_METHODS = [
 	methods.KernelRidgeRegression,
 	methods.KernelLogisticRegression,
+	methods.SVM
 ]
 
 TEST_KERNELS = [
