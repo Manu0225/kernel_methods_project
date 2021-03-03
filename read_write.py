@@ -1,14 +1,28 @@
 import numpy as np
+import csv
+from pandas import read_csv
 
 
-def load_X100(path):
+def read_X100(path):
 	# path resembling: "data/Xte0_mat100.csv"
 	return np.loadtxt(path)
 
 
-def load_labels(path):
+def read_labels(path):
 	# need to ignore the first col
 	return 2 * np.loadtxt(path, delimiter=",", skiprows=1)[:, 1, None] - 1
+
+
+def read(path):
+	with open(path) as csvfile:
+		df = read_csv(csvfile)
+		for i, char in enumerate(["A", "C", "G", "T"]):
+			df['seq'] = df['seq'].str.replace(char, str(i))
+		df = df['seq'].str.split('', expand=True)
+		array = df.to_numpy()[:, 1:-1].astype(np.int)
+	# print(array)
+	# print(array.shape)
+	return array
 
 
 def write(Y, path, offset, append=True):
@@ -16,6 +30,7 @@ def write(Y, path, offset, append=True):
 	:param Y: of shape (n,1), with values ±1
 	:param path: relative path of the file
 	:param offset:
+	:param append: boolean to add to the end of the file or rewrite the all file
 	:return:
 	prints into the file "path" in the following format
 
@@ -35,10 +50,10 @@ def write(Y, path, offset, append=True):
 
 	with open(path, "a" if append else "w") as f:
 		np.savetxt(f,
-		           write_array,
-		           fmt="%.0f",
-		           delimiter=",",
-		           header="Id,Bound" if not append else "",
-		           comments="")
+				   write_array,
+				   fmt="%.0f",
+				   delimiter=",",
+				   header="Id,Bound" if not append else "",
+				   comments="")
 
 # write(np.random.choice([-1,1],5).reshape(5,1), "data/test2.csv",0)

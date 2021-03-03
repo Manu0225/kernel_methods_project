@@ -5,9 +5,9 @@ import methods#.methods as methods
 
 def main():
 	for i in range(3):
-		X_train = read_write.load_X100(f"data/Xtr{i}_mat100.csv")
-		y_train = read_write.load_labels(f"data/Ytr{i}.csv")
-		X_test = read_write.load_X100(f"data/Xte{i}_mat100.csv")
+		X_train = read_write.read_X100(f"data/Xtr{i}_mat100.csv")
+		y_train = read_write.read_labels(f"data/Ytr{i}.csv")
+		X_test = read_write.read_X100(f"data/Xte{i}_mat100.csv")
 
 		linear_kernel = kernels.Linear()
 		# gaussian_kernel = kernels.Gaussian()
