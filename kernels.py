@@ -11,6 +11,12 @@ class Kernel(ABC):
 	def K(self, X, X_prime):
 		pass
 
+	def fit(self, X):
+		self.X = X
+		return self.K(X, X)
+
+	def make_rkhs_func(self, alpha):
+		return lambda Xprime : self.K(Xprime, self.X) @ alpha
 
 class Linear(Kernel):
 	def __init__(self):

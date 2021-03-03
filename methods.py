@@ -11,16 +11,10 @@ class Method(ABC):
 		self.X = None
 		self.alpha = None
 		pass
-
+    
 	def predict(self, X_prime):
-		K = self.kernel.K(X_prime, self.X)
-
-		n, _ = self.alpha.shape
-		m, _ = K.shape
-		assert K.shape == (m, n)
-
-		f = K @ self.alpha
-		assert f.shape == (m, 1)
+		rkhs_func = self.kernel.make_rkhs_func(self.alpha)
+		f = rkhs_func(X_prime)
 
 		h = np.sign(f)
 		h[h == 0] = 1
@@ -35,7 +29,7 @@ class KernelRidgeRegression(Method):
 
 	def learn(self, X, Y):
 		self.X = X
-		K = self.kernel.K(X, X)
+		K = self.kernel.fit(X)
 		n, _ = K.shape
 		assert Y.shape == (n, 1)
 
@@ -120,7 +114,7 @@ class KernelLogisticRegression(Method):
 
 	def learn(self, X, Y, tol=1e-6):
 		self.X = X
-		K = self.kernel.K(X, X)
+		K = self.kernel.fit(X)
 		n, _ = K.shape
 		assert Y.shape == (n, 1)
 
@@ -128,7 +122,6 @@ class KernelLogisticRegression(Method):
 		alpha_0 = np.ones((n, 1))
 		alpha = newton_method(loss, oracle, alpha_0, eps=tol)
 		self.alpha = alpha
-
 
 def accuracy(y_true, y_pred):
 	return np.sum(y_true == y_pred) / len(y_true)
