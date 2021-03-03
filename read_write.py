@@ -1,5 +1,4 @@
 import numpy as np
-import csv
 from pandas import read_csv
 
 
