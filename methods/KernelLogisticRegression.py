@@ -1,40 +1,5 @@
-from abc import ABC, abstractmethod
+from methods import Method
 import numpy as np
-
-
-class Method(ABC):
-	def __init__(self):
-		self.kernel = None
-
-	@abstractmethod
-	def learn(self, X, Y):
-		self.X = None
-		self.alpha = None
-		pass
-    
-	def predict(self, X_prime):
-		rkhs_func = self.kernel.make_rkhs_func(self.alpha)
-		f = rkhs_func(X_prime)
-
-		h = np.sign(f)
-		h[h == 0] = 1
-
-		return h
-
-
-class KernelRidgeRegression(Method):
-	def __init__(self, kernel, reg_val=0.1):
-		self.kernel = kernel
-		self.reg_val = reg_val
-
-	def learn(self, X, Y):
-		self.X = X
-		K = self.kernel.fit(X)
-		n, _ = K.shape
-		assert Y.shape == (n, 1)
-
-		self.alpha = np.linalg.solve(K + self.reg_val * n * np.identity(n), Y)
-		assert self.alpha.shape == (n, 1)
 
 
 def line_search(f, f_x, nt_decrement, x, delta_x, alpha, beta):
@@ -122,6 +87,3 @@ class KernelLogisticRegression(Method):
 		alpha_0 = np.ones((n, 1))
 		alpha = newton_method(loss, oracle, alpha_0, eps=tol)
 		self.alpha = alpha
-
-def accuracy(y_true, y_pred):
-	return np.sum(y_true == y_pred) / len(y_true)

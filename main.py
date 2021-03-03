@@ -1,6 +1,6 @@
 import read_write
 import kernels
-import methods
+import methods#.methods as methods
 
 
 def main():
