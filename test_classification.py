@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-gen = np.random.default_rng()
+gen = np.random
 
 import methods
 import kernels

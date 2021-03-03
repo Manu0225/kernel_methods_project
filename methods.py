@@ -51,7 +51,7 @@ def line_search(f, f_x, nt_decrement, x, delta_x, alpha, beta):
     return t
 
 def newton_step(grad_f_x, hessian_f_x):
-    nt_step = - np.linalg.solve(hessian_f_x, grad_f_x)
+    nt_step = -np.linalg.lstsq(hessian_f_x, grad_f_x, rcond=None)[0]
     nt_decrement = - np.dot(grad_f_x.T, nt_step)
     return nt_step, nt_decrement
 

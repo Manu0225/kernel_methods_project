@@ -11,7 +11,7 @@ def load_labels(path):
 	return 2 * np.loadtxt(path, delimiter=",", skiprows=1)[:, 1, None] - 1
 
 
-def write(Y, path, offset):
+def write(Y, path, offset, append=True):
 	"""
 	:param Y: of shape (n,1), with values ±1
 	:param path: relative path of the file
@@ -33,6 +33,12 @@ def write(Y, path, offset):
 		[(1 + Y.squeeze()) / 2]
 	]).astype(np.int32).T
 
-	np.savetxt(path, write_array, fmt="%.0f", delimiter=",", header="Id,Bound", comments="")
+	with open(path, "a" if append else "w") as f:
+		np.savetxt(f,
+		           write_array,
+		           fmt="%.0f",
+		           delimiter=",",
+		           header="Id,Bound" if not append else "",
+		           comments="")
 
 # write(np.random.choice([-1,1],5).reshape(5,1), "data/test2.csv",0)
