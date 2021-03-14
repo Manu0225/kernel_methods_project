@@ -45,10 +45,9 @@ TEST_METHODS = [
 ]
 
 TEST_KERNELS = [
-	kernels.Linear(),
-	kernels.Gaussian(0.1),
-	kernels.Polynomial(degree=3),
-	kernels.Polynomial(degree=6)
+	(kernels.Linear(), .1),
+	(kernels.Gaussian(.1), .1),
+	(kernels.Polynomial(degree=3), .1)
 ]
 
 TEST_SEQ_KERNELS = [
@@ -58,9 +57,10 @@ TEST_SEQ_KERNELS = [
 
 
 @pytest.mark.parametrize('method', TEST_METHODS)
-@pytest.mark.parametrize('kernel', TEST_KERNELS)
-def test_methods(method, kernel, x_train, y_train, x_test, y_test):
-	meth = method(kernel)
+@pytest.mark.parametrize('kernel_with_reg', TEST_KERNELS)
+def test_methods(method, kernel_with_reg, x_train, y_train, x_test, y_test):
+	kernel, reg = kernel_with_reg
+	meth = method(kernel, reg_val=reg)
 	meth.learn(x_train, y_train)
 	y_est = meth.predict(x_train)
 	np.testing.assert_equal(y_est, y_train)
@@ -71,6 +71,9 @@ def test_methods(method, kernel, x_train, y_train, x_test, y_test):
 @pytest.mark.parametrize('method', TEST_METHODS)
 @pytest.mark.parametrize('kernel', TEST_SEQ_KERNELS)
 def test_seq_methods(method, kernel, seq_train, y_train, seq_test, y_test):
+	K = kernel.fit(seq_train)
+	np.testing.assert_equal(K, K.T)
+	assert (np.all(np.linalg.eigvalsh(K) > 0)),f"Sp(K)={np.sort(np.real(np.linalg.eigvalsh(K)))}"
 	meth = method(kernel)
 	meth.learn(seq_train, y_train)
 	y_est = meth.predict(seq_train)

@@ -61,9 +61,9 @@ class FeaturesKernel(Kernel):
 	def features(self, X):
 		pass
 
-	def fit(self, X):
+	def fit(self, X, reg_val = 1e-7):
 		self.feats = self.features(X)
-		return (self.feats @ self.feats.T).todense().A
+		return (self.feats.dot(self.feats.T)).todense().A + reg_val * np.eye(self.feats.shape[0])
 
 	def make_rkhs_func(self, alpha):
 		w = self.feats.T.dot(alpha)
