@@ -3,6 +3,8 @@ import numpy as np
 from scipy.spatial.distance import cdist
 import scipy
 import scipy.sparse
+import scipy.special
+from tqdm import tqdm
 
 
 # X and X_prime are (n, d) and (m, d) numpy vectors resp.
@@ -92,6 +94,57 @@ class SpectrumKernel(FeaturesKernel):
 				phi[j, index] += 1
 		return phi.tocsr()
 
+class MismatchKernel(FeaturesKernel):
+	def __init__(self, k, m, A):
+		super(FeaturesKernel, self).__init__()
+		self.k = k
+		self.m = m
+		assert k > m
+
+		self.A = A
+		self.max_n_matches_per_sample = sum([scipy.special.comb(k, l, exact=True) * (A - 1)** l for l in range(m+1)])
+	
+	def generate_matches(self, x, buff):
+		"""
+		given x a sample of size k, return naively all the sequences of size k
+		which match with x up to m mismatches
+		"""
+		stack = []
+		stack.append(([], 0))
+		buff_index = 0
+		while len(stack) > 0:
+			l, curr_mismatches = stack.pop()
+			if len(l) == self.k:
+				buff[buff_index] = np.array(l)
+				buff_index += 1
+			elif curr_mismatches == self.m:
+				buff[buff_index] = np.concatenate((np.array(l), x[len(l):]))
+				buff_index += 1
+			else:
+				for a in range(self.A):
+					stack.append((l+[a], curr_mismatches + int(a != x[len(l)])))
+		assert buff_index == self.max_n_matches_per_sample
+
+	def from_decomposition(self, decomp):
+
+		assert decomp.shape == (self.max_n_matches_per_sample, self.k)
+
+		return decomp.dot(self.A ** np.arange(self.k))
+
+	def features(self, X):
+		assert (X <= self.A - 1).all()
+		n, length = X.shape
+
+		phi = scipy.sparse.lil_matrix((n, self.A ** self.k), dtype=np.uint)
+		buff = np.empty((self.max_n_matches_per_sample, self.k), dtype=np.int)
+		for j, row in enumerate(tqdm(X)):
+			for i in range(self.k - 1, length):
+				x = row[i - (self.k - 1):i + 1]
+				self.generate_matches(x, buff)
+				to_mod_indices = self.from_decomposition(buff)
+				for index in to_mod_indices:
+					phi[j, index] += 1
+		return phi.tocsr()
 
 class Polynomial(NaiveKernel):
 	def __init__(self, degree):

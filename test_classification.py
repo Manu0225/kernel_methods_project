@@ -5,9 +5,10 @@ import kernels
 
 gen = np.random
 
-n = 2000
+n = 1000
 d = 100
 l = 106
+A = 3
 
 
 @pytest.fixture
@@ -33,6 +34,11 @@ def seq():
 	assert seq.shape == (n, l)
 	return seq
 
+@pytest.fixture
+def simple_seq():
+	seq = np.zeros((10, l))
+	seq[10 // 2:, :] += 1
+	return seq
 
 x_train, x_test = x, x
 y_train, y_test = y, y
@@ -51,8 +57,9 @@ TEST_KERNELS = [
 ]
 
 TEST_SEQ_KERNELS = [
-	kernels.SpectrumKernel(1),
-	kernels.SpectrumKernel(3),
+	#kernels.SpectrumKernel(1),
+	#kernels.SpectrumKernel(2),
+	kernels.MismatchKernel(3, 1, A)
 ]
 
 
@@ -80,3 +87,18 @@ def test_seq_methods(method, kernel, seq_train, y_train, seq_test, y_test):
 	np.testing.assert_equal(y_est, y_train)
 	y_est = meth.predict(seq_test)
 	np.testing.assert_equal(y_est, y_test)
+
+def test_mismatch_kernel(simple_seq):
+	n = len(simple_seq)
+	kernel = kernels.MismatchKernel(3, 1, 2)
+	K = kernel.fit(simple_seq)
+	print(K)
+	assert (K[:n//2, :n//2] >= 1).all()
+	assert (K[n//2:, n//2:] >= 1).all()
+	zeros = np.zeros((n//2, n//2))
+	np.testing.assert_equal(K[:n//2, n//2:], zeros)
+	np.testing.assert_equal(K[n//2:, :n//2], zeros)
+
+
+
+
