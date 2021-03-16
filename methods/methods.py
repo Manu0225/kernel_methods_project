@@ -5,12 +5,18 @@ import numpy as np
 class Method(ABC):
 	def __init__(self):
 		self.kernel = None
-		self.X = None
 		self.alpha = None
 
 	@abstractmethod
-	def learn(self, X, Y):
+	def _kernel_learn(self, K, Y):
 		pass
+
+	def learn(self, X, Y, normalize=False):
+		K = self.kernel.fit(X)
+		norm = np.amax(np.abs(K)) if normalize else 1
+		K = K / norm
+		self.alpha = self._kernel_learn(K, Y)
+		self.alpha /= norm
 
 	def predict(self, X_prime):
 		rkhs_func = self.kernel.make_rkhs_func(self.alpha)

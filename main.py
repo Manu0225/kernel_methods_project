@@ -6,6 +6,76 @@ import methods  # .methods as methods
 from multiprocessing import Pool
 
 
+def main_sum():
+	ls_kernel = [
+		kernels.SpectrumKernel(15),
+		kernels.SpectrumKernel(6),
+		kernels.SpectrumKernel(6)
+	]
+	ls_kernel_prime = [
+		kernels.Gaussian(1),
+		kernels.Gaussian(1),
+		kernels.Gaussian(.01)
+	]
+	# ls_methods = [
+	# methods.SVM(kernel_0, reg_val=.1),
+	# methods.SVM(kernel_1, reg_val=.1),
+	# methods.SVM(kernel_2, reg_val=.01),
+	# ]
+	for i in range(3):
+		print("##################",
+			  f"i={i}")
+		# X = read_write.read_X100(f"data/Xtr{i}_mat100.csv")
+		X = read_write.read(f"data/Xtr{i}.csv")
+		l = X.shape[1]
+
+		X_cat = np.concatenate((X, X), axis=-1)
+
+		# X_test = read_write.read_X100(f"data/Xte{i}_mat100.csv")
+		# X_test = read_write.read(f"data/Xte{i}.csv")
+
+		y = read_write.read_labels(f"data/Ytr{i}.csv")
+
+		X_train, y_train, X_val, y_val = split(X_cat, y, proportion_train=.8)
+		# k,m,A
+
+		kernel_class = kernels.SumKernel
+		method_class = methods.SVM
+		params_kernel = [(ls_kernel[i], ls_kernel_prime[i], l, l)]
+		# [(k, max(floor(k / 10), 1), 4) for k in range(6, 18, 3)]  # 10. **
+		reg_vals = 10. ** np.arange(-2, 3, 1 / 2)
+		res = validation(X_train, y_train, X_val, y_val, kernel_class, method_class, params_kernel, reg_vals)
+
+
+def main_poly():
+	ls_kernel = [
+		kernels.SpectrumKernel(15),
+		kernels.SpectrumKernel(6),
+		kernels.SpectrumKernel(6)
+	]
+	for i in range(3):
+		print("##################",
+			  f"i={i}")
+		# X = read_write.read_X100(f"data/Xtr{i}_mat100.csv")
+		X = read_write.read(f"data/Xtr{i}.csv")
+
+		# X_test = read_write.read_X100(f"data/Xte{i}_mat100.csv")
+		# X_test = read_write.read(f"data/Xte{i}.csv")
+
+		y = read_write.read_labels(f"data/Ytr{i}.csv")
+
+		X_train, y_train, X_val, y_val = split(X, y, proportion_train=.8)
+		# k,m,A
+
+		kernel_class = kernels.PolyKernel
+		method_class = methods.KernelLogisticRegression
+		print(kernel_class, method_class)
+		params_kernel = [(ls_kernel[i], deg) for deg in range(2, 5)]
+		# [(k, max(floor(k / 10), 1), 4) for k in range(6, 18, 3)]  # 10. **
+		reg_vals = 10. ** np.arange(-3, 4, 1)
+		res = validation(X_train, y_train, X_val, y_val, kernel_class, method_class, params_kernel, reg_vals)
+
+
 def main_val():
 	for i in range(3):
 		print("##################",
@@ -14,27 +84,38 @@ def main_val():
 		X = read_write.read(f"data/Xtr{i}.csv")
 
 		# X_test = read_write.read_X100(f"data/Xte{i}_mat100.csv")
-		X_test = read_write.read(f"data/Xte{i}.csv")
+		# X_test = read_write.read(f"data/Xte{i}.csv")
 
 		y = read_write.read_labels(f"data/Ytr{i}.csv")
 
 		X_train, y_train, X_val, y_val = split(X, y, proportion_train=.8)
-		kernel_class = kernels.Gaussian
-		method_class = methods.KernelLogisticRegression
-		params_kernel = [(10. ** i,) for i in range(1, 4, 1)]
+		# k,m,A
+		kernel_class = kernels.MismatchKernel
+		method_class = methods.SVM
+		params_kernel = [(i, max(floor(i / 10), 1), 4) for i in range(6, 18, 3)]  # 10. **
 		reg_vals = 10. ** np.arange(-2, 3, 1)
 		res = validation(X_train, y_train, X_val, y_val, kernel_class, method_class, params_kernel, reg_vals)
-	# print(res)
 
 
-def main():
-	kernel_0 = kernels.SpectrumKernel(15)
-	kernel_1 = kernels.SpectrumKernel(6)
-	kernel_2 = kernels.SpectrumKernel(6)
+# print(res)
+
+
+def main_rendu():
+	ls_kernel = [
+		kernels.SpectrumKernel(15),
+		kernels.SpectrumKernel(6),
+		kernels.SpectrumKernel(6)
+	]
+	ls_kernel_prime = [
+		kernels.Gaussian(1),
+		kernels.Gaussian(1),
+		kernels.Gaussian(.01)
+	]
+	ls_reg_val = [0.03, 0.1, 0.03]
 	ls_methods = [
-		methods.SVM(kernel_0, reg_val=.1),
-		methods.SVM(kernel_1, reg_val=.1),
-		methods.SVM(kernel_2, reg_val=.01),
+		methods.SVM(kernels.SumKernel(ls_kernel[i], ls_kernel_prime[i], 101, 101),
+					reg_val=ls_reg_val[i])
+		for i in range(3)
 	]
 	for i in range(3):
 		print("##################",
@@ -46,18 +127,23 @@ def main():
 		X_test = read_write.read(f"data/Xte{i}.csv")
 
 		y = read_write.read_labels(f"data/Ytr{i}.csv")
-
-		ls_methods[i].learn(X, y)
-		y_pred = ls_methods[i].predict(X)
-		print(methods.accuracy(y,y_pred))
-		y_test = ls_methods[i].predict(X_test)
+		X_cat = np.concatenate((X, X), axis=-1)
+		X_test_cat = np.concatenate((X_test, X_test), axis=-1)
+		ls_methods[i].learn(X_cat, y, normalize=False)
+		y_pred = ls_methods[i].predict(X_cat)
+		print(methods.accuracy(y, y_pred))
+		y_test = ls_methods[i].predict(X_test_cat)
 
 		read_write.write(y_test,
 						 "predictions/Yte.csv",
-						 offset=i*1000,
+						 offset=i * 1000,
 						 append=(i != 0)
 						 )
 
+
+def main():
+	main_rendu()
+	return
 
 
 # linear_kernel = kernels.Linear()
@@ -107,7 +193,7 @@ def validation(X_train, y_train, X_val, y_val, kernel_class, method_class, param
 			method.learn(X_train, y_train)
 			y_pred = method.predict(X_val)
 			acc = methods.accuracy(y_val, y_pred)
-			print(f"{acc}, {param[0]}, {reg_val}")
+			print(f"{acc}, {param}, {reg_val}")
 			if acc > best_acc:
 				best_acc = acc
 				best_param = param
