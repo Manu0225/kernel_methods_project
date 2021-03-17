@@ -11,12 +11,15 @@ class Method(ABC):
 	def _kernel_learn(self, K, Y):
 		pass
 
-	def learn(self, X, Y, normalize=False):
-		K = self.kernel.fit(X)
-		norm = np.amax(np.abs(K)) if normalize else 1
-		K = K / norm
+	def learn(self, X, Y, K=None, phi=None, normalize=False):
+		K, _ = self.kernel.fit(X, K=K, phi=phi)
+		norm_matrix = np.diag(K).reshape(-1, 1) @ np.diag(K).reshape(1,-1) if normalize else 1  # np.amax(np.abs(K))
+		K = K / norm_matrix
 		self.alpha = self._kernel_learn(K, Y)
-		self.alpha /= norm
+		# self.alpha /= norm_matrix
+		# QUE METTRE ICI ? np.diag(K) ?
+
+	# return K, phi, self.alpha
 
 	def predict(self, X_prime):
 		rkhs_func = self.kernel.make_rkhs_func(self.alpha)

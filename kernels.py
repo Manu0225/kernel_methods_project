@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 class Kernel(ABC):
 	@abstractmethod
-	def fit(self, X):
+	def fit(self, X, K=None, phi=None):
 		pass
 
 	@abstractmethod
@@ -33,9 +33,10 @@ class NaiveKernel(ABC):
 	def K(self, X, X_prime):
 		pass
 
-	def fit(self, X):
+	def fit(self, X, K=None, phi=None):
 		self.X = X
-		return self.K(X, X)
+		K = self.K(X, X) if K is None else K
+		return K, None
 
 	def make_rkhs_func(self, alpha):
 		return lambda Xprime: self.K(Xprime, self.X) @ alpha
@@ -68,13 +69,15 @@ class FeaturesKernel(Kernel):
 		pass
 
 	def K(self, X, X_prime):
+		print("K en cours")
 		feats = self.features(X)
 		feats_prime = self.features(X_prime)
 		return (feats.dot(feats_prime.T)).todense().A
 
-	def fit(self, X):
-		self.feats = self.features(X)
-		return (self.feats.dot(self.feats.T)).todense().A
+	def fit(self, X, K=None, phi=None):
+		self.feats = self.features(X) if phi is None else phi
+		K = (self.feats.dot(self.feats.T)).todense().A if K is None else K
+		return K, self.feats
 
 	def make_rkhs_func(self, alpha):
 		w = self.feats.T.dot(alpha)
@@ -92,7 +95,9 @@ class SpectrumKernel(FeaturesKernel):
 
 		return decomp.dot(basis ** np.arange(self.k))
 
-	def features(self, X):
+	def features(self, X, phi=None):
+		if phi is not None:
+			return phi
 		a = np.max(X) + 1
 		n, length = X.shape
 
@@ -141,7 +146,9 @@ class MismatchKernel(FeaturesKernel):
 
 		return decomp.dot(self.A ** np.arange(self.k))
 
-	def features(self, X):
+	def features(self, X, phi=None):
+		if phi is not None:
+			return phi
 		assert (X <= self.A - 1).all()
 		n, length = X.shape
 
@@ -175,10 +182,12 @@ class SumKernel(Kernel):
 		self.d1 = d1
 		self.d2 = d2
 
-	def fit(self, X):
+	def fit(self, X, K=None, phi=None):
 		assert X.shape[1] == self.d1 + self.d2
-		X_1, X_2 = X[:, :self.d1], X[:, self.d1:]
-		return self.kernel_1.fit(X_1) + self.kernel_2.fit(X_2)
+		if K is None:
+			X_1, X_2 = X[:, :self.d1], X[:, self.d1:]
+			K = self.kernel_1.fit(X_1) + self.kernel_2.fit(X_2)
+		return K, phi
 
 	def K(self, X, X_prime):
 		assert X.shape[1] == self.d1 + self.d2
@@ -219,8 +228,8 @@ class FeaturesPolyKernel(FeaturesKernel):
 
 		return res
 
-	def features(self, X):
-		phi = self.feature_kernel.features(X)
+	def features(self, X, phi=None):
+		phi = self.feature_kernel.features(X) if phi is None else phi
 
 		res = phi
 		for _ in range(self.degree - 1):
