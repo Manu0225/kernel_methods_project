@@ -3,6 +3,7 @@ import numpy as np
 from scipy.spatial.distance import cdist
 import scipy
 import scipy.sparse
+import scipy.sparse.linalg
 import scipy.special
 from tqdm import tqdm
 
@@ -11,67 +12,87 @@ from tqdm import tqdm
 # Y is a (n,1) numpy vectors
 
 class Kernel(ABC):
-	def __init__(self):
+	def __init__(self, normalize=False):
+		self.normalize = normalize
 		self.X = None
 
 	@abstractmethod
-	def K(self, X, X_prime):
+	def _K(self, X, X_prime):
 		pass
+
+	def K(self, X, X_prime):
+		K = self._K(X, X_prime)
+		if self.normalize:
+			sqrt_inv_diag_K = np.diag(K) ** (-1 / 2)
+			K = sqrt_inv_diag_K[:, None] * ( K * sqrt_inv_diag_K[None, :])
+		return K
 
 	def fit(self, X, K=None, phi=None):
 		self.X = X
 		K = self.K(X, X) if K is None else K
 		return K, None
 
-	def make_rkhs_func(self, alpha):
-		return lambda Xprime: self.K(Xprime, self.X) @ alpha
+	def make_rkhs_func(self, alpha, K_prime=None, phi_prime=None):
+		return lambda Xprime: (self.K(Xprime, self.X) @ alpha if K_prime is None
+							   else K_prime @ alpha)
 
 
 class Linear(Kernel):
-	def __init__(self):
-		super(Linear, self).__init__()
+	def __init__(self, *args):
+		super(Linear, self).__init__(*args)
 
-	def K(self, X, X_prime):
+	def _K(self, X, X_prime):
 		return X @ X_prime.T
 
 
 class Gaussian(Kernel):
-	def __init__(self, alpha=0.1):
-		super(Gaussian, self).__init__()
+	def __init__(self, alpha=0.1, *args):
+		super(Gaussian, self).__init__(*args)
 		self.alpha = alpha
 
-	def K(self, X, X_prime):
+	def _K(self, X, X_prime):
 		C = cdist(X, X_prime, 'euclidean') ** 2
 		return np.exp(- self.alpha / 2 * C)
 
 
 class FeaturesKernel(Kernel):
-	def __init__(self):
+	def __init__(self, *args):
+		super(FeaturesKernel, self).__init__(*args)
 		self.feats = None
 
 	@abstractmethod
-	def features(self, X):
+	def _features(self, X):
 		pass
 
-	def K(self, X, X_prime):
-		print("K en cours")
+	def _K(self, X, X_prime):
 		feats = self.features(X)
 		feats_prime = self.features(X_prime)
 		return (feats.dot(feats_prime.T)).todense().A
+
+	def features(self, X):
+		feats = self._features(X)
+		if self.normalize:
+			norm = scipy.sparse.linalg.norm(feats, axis=-1)
+			assert norm.shape == (feats.shape[0],)
+			diag = scipy.sparse.diags(norm ** (-1 / 2), format="csr")
+			feats = diag @ feats
+		assert scipy.sparse.issparse(feats)
+		return feats
 
 	def fit(self, X, K=None, phi=None):
 		self.feats = self.features(X) if phi is None else phi
 		K = (self.feats.dot(self.feats.T)).todense().A if K is None else K
 		return K, self.feats
 
-	def make_rkhs_func(self, alpha):
+	def make_rkhs_func(self, alpha, K_prime=None, phi_prime=None):
 		w = self.feats.T.dot(alpha)
-		return lambda Xprime: self.features(Xprime).dot(w)
+		return lambda Xprime: (self.features(Xprime).dot(w) if phi_prime is None else
+							   phi_prime.dot(w))
 
 
 class SpectrumKernel(FeaturesKernel):
-	def __init__(self, k):
-		super(SpectrumKernel, self).__init__()
+	def __init__(self, k, *args):
+		super(SpectrumKernel, self).__init__(*args)
 		self.k = k
 
 	def from_decomposition(self, decomp, basis):
@@ -80,7 +101,7 @@ class SpectrumKernel(FeaturesKernel):
 
 		return decomp.dot(basis ** np.arange(self.k))
 
-	def features(self, X):
+	def _features(self, X):
 		a = np.max(X) + 1
 		n, length = X.shape
 
@@ -93,34 +114,33 @@ class SpectrumKernel(FeaturesKernel):
 
 
 class MismatchKernel(FeaturesKernel):
-	def __init__(self, k, m, A):
-		super(FeaturesKernel, self).__init__()
+	def __init__(self, k, m, A, *args):
+		super(FeaturesKernel, self).__init__(*args)
 		self.k = k
 		self.m = m
 		assert k > m
 
 		self.A = A
-		self.max_n_matches_per_sample = sum([scipy.special.comb(k, l, exact=True) * (A - 1) ** l for l in range(m + 1)])
+		self.max_n_matches_per_sample = sum([scipy.special.comb(k, i, exact=True) * (A - 1) ** i for i in range(m + 1)])
 
 	def generate_matches(self, x, buff):
 		"""
 		given x a sample of size k, return naively all the sequences of size k
 		which match with x up to m mismatches
 		"""
-		stack = []
-		stack.append(([], 0))
+		stack = [([], 0)]
 		buff_index = 0
 		while len(stack) > 0:
-			l, curr_mismatches = stack.pop()
-			if len(l) == self.k:
-				buff[buff_index] = np.array(l)
+			length, curr_mismatches = stack.pop()
+			if len(length) == self.k:
+				buff[buff_index] = np.array(length)
 				buff_index += 1
 			elif curr_mismatches == self.m:
-				buff[buff_index] = np.concatenate((np.array(l), x[len(l):]))
+				buff[buff_index] = np.concatenate((np.array(length), x[len(length):]))
 				buff_index += 1
 			else:
 				for a in range(self.A):
-					stack.append((l + [a], curr_mismatches + int(a != x[len(l)])))
+					stack.append((length + [a], curr_mismatches + int(a != x[len(length)])))
 		assert buff_index == self.max_n_matches_per_sample
 
 	def from_decomposition(self, decomp):
@@ -129,7 +149,7 @@ class MismatchKernel(FeaturesKernel):
 
 		return decomp.dot(self.A ** np.arange(self.k))
 
-	def features(self, X):
+	def _features(self, X):
 		assert (X <= self.A - 1).all()
 		n, length = X.shape
 
@@ -146,33 +166,50 @@ class MismatchKernel(FeaturesKernel):
 
 
 class Polynomial(Kernel):
-	def __init__(self, degree):
-		super(Polynomial, self).__init__()
+	def __init__(self, degree, *args):
+		super(Polynomial, self).__init__(*args)
 		assert (isinstance(degree, int))
 		self.degree = degree
 
-	def K(self, X, X_prime):
+	def _K(self, X, X_prime):
 		return (X @ X_prime.T) ** self.degree
 
 
 class SumKernel(Kernel):
-	def __init__(self, kernel_1, kernel_2, d1, d2):
-		super(SumKernel, self).__init__()
+	def __init__(self, kernel_1, kernel_2, d1, d2, *args):
+		super(SumKernel, self).__init__(*args)
 		self.kernel_1 = kernel_1
 		self.kernel_2 = kernel_2
 		self.d1 = d1
 		self.d2 = d2
 
-	def K(self, X, X_prime):
+	def _K(self, X, X_prime):
 		assert X.shape[1] == self.d1 + self.d2
 		assert X_prime.shape[1] == self.d1 + self.d2
 		X_1, X_2 = X[:, :self.d1], X[:, self.d1:]
 		X_1_prime, X_2_prime = X_prime[:, :self.d1], X_prime[:, self.d1:]
 		return self.kernel_1.K(X_1, X_1_prime) + self.kernel_2.K(X_2, X_2_prime)
 
-	def make_rkhs_func(self, alpha):
-		f1 = self.kernel_1.make_rkhs_func(alpha)
-		f2 = self.kernel_2.make_rkhs_func(alpha)
+	def fit(self, X, K=None, phi=None):
+		assert X.shape[1] == self.d1 + self.d2
+		if K is None:
+			assert phi is None
+			X_1, X_2 = X[:, :self.d1], X[:, self.d1:]
+			K1, phi_1 = self.kernel_1.fit(X_1)
+			K2, phi_2 = self.kernel_2.fit(X_2)
+			K = K1 + K2
+			phi = (phi_1, phi_2)
+		else:
+			assert phi is not None
+			phi_1, phi_2 = phi
+			self.kernel_1.feats = phi_1
+			self.kernel_2.feats = phi_2
+		return K, phi
+
+	def make_rkhs_func(self, alpha, K_prime=None, phi_prime=None):
+		phi_1_prime, phi_2_prime = phi_prime if phi_prime is not None else None, None
+		f1 = self.kernel_1.make_rkhs_func(alpha, K_prime=K_prime, phi_prime=phi_1_prime)
+		f2 = self.kernel_2.make_rkhs_func(alpha, K_prime=K_prime, phi_prime=phi_2_prime)
 
 		def rkhs_func(Xprime):
 			Xprime_1, Xprime_2 = Xprime[:, :self.d1], Xprime[:, self.d1:]
@@ -182,8 +219,8 @@ class SumKernel(Kernel):
 
 
 class FeaturesPolyKernel(FeaturesKernel):
-	def __init__(self, feature_kernel, degree):
-		super(FeaturesPolyKernel, self).__init__()
+	def __init__(self, feature_kernel, degree, *args):
+		super(FeaturesPolyKernel, self).__init__(*args)
 		self.feature_kernel = feature_kernel
 		self.degree = degree
 
@@ -202,7 +239,7 @@ class FeaturesPolyKernel(FeaturesKernel):
 
 		return res
 
-	def features(self, X, phi=None):
+	def _features(self, X, phi=None):
 		phi = self.feature_kernel.features(X) if phi is None else phi
 
 		res = phi
@@ -212,12 +249,12 @@ class FeaturesPolyKernel(FeaturesKernel):
 
 
 class PolyKernel(Kernel):
-	def __init__(self, kernel, degree):
-		super(PolyKernel, self).__init__()
+	def __init__(self, kernel, degree, *args):
+		super(PolyKernel, self).__init__(*args)
 		self.kernel = kernel
 		self.degree = degree
 
-	def K(self, X, X_prime):
+	def _K(self, X, X_prime):
 		K = self.kernel.K(X, X_prime)
 		K_tiled = np.tile(K[None, :, :], (self.degree, 1, 1))
 		assert K_tiled.shape == (self.degree,) + K.shape
