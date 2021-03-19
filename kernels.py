@@ -10,22 +10,7 @@ from tqdm import tqdm
 # X and X_prime are (n, d) and (m, d) numpy vectors resp.
 # Y is a (n,1) numpy vectors
 
-
 class Kernel(ABC):
-	@abstractmethod
-	def fit(self, X, K=None, phi=None):
-		pass
-
-	@abstractmethod
-	def make_rkhs_func(self, alpha):
-		pass
-
-	@abstractmethod
-	def K(self, X, X_prime):
-		pass
-
-
-class NaiveKernel(ABC):
 	def __init__(self):
 		self.X = None
 
@@ -42,7 +27,7 @@ class NaiveKernel(ABC):
 		return lambda Xprime: self.K(Xprime, self.X) @ alpha
 
 
-class Linear(NaiveKernel):
+class Linear(Kernel):
 	def __init__(self):
 		super(Linear, self).__init__()
 
@@ -50,7 +35,7 @@ class Linear(NaiveKernel):
 		return X @ X_prime.T
 
 
-class Gaussian(NaiveKernel):
+class Gaussian(Kernel):
 	def __init__(self, alpha=0.1):
 		super(Gaussian, self).__init__()
 		self.alpha = alpha
@@ -95,9 +80,7 @@ class SpectrumKernel(FeaturesKernel):
 
 		return decomp.dot(basis ** np.arange(self.k))
 
-	def features(self, X, phi=None):
-		if phi is not None:
-			return phi
+	def features(self, X):
 		a = np.max(X) + 1
 		n, length = X.shape
 
@@ -146,9 +129,7 @@ class MismatchKernel(FeaturesKernel):
 
 		return decomp.dot(self.A ** np.arange(self.k))
 
-	def features(self, X, phi=None):
-		if phi is not None:
-			return phi
+	def features(self, X):
 		assert (X <= self.A - 1).all()
 		n, length = X.shape
 
@@ -164,7 +145,7 @@ class MismatchKernel(FeaturesKernel):
 		return phi.tocsr()
 
 
-class Polynomial(NaiveKernel):
+class Polynomial(Kernel):
 	def __init__(self, degree):
 		super(Polynomial, self).__init__()
 		assert (isinstance(degree, int))
@@ -181,13 +162,6 @@ class SumKernel(Kernel):
 		self.kernel_2 = kernel_2
 		self.d1 = d1
 		self.d2 = d2
-
-	def fit(self, X, K=None, phi=None):
-		assert X.shape[1] == self.d1 + self.d2
-		if K is None:
-			X_1, X_2 = X[:, :self.d1], X[:, self.d1:]
-			K = self.kernel_1.fit(X_1) + self.kernel_2.fit(X_2)
-		return K, phi
 
 	def K(self, X, X_prime):
 		assert X.shape[1] == self.d1 + self.d2
@@ -237,7 +211,7 @@ class FeaturesPolyKernel(FeaturesKernel):
 		return res
 
 
-class PolyKernel(NaiveKernel):
+class PolyKernel(Kernel):
 	def __init__(self, kernel, degree):
 		super(PolyKernel, self).__init__()
 		self.kernel = kernel
