@@ -10,22 +10,7 @@ from tqdm import tqdm
 # X and X_prime are (n, d) and (m, d) numpy vectors resp.
 # Y is a (n,1) numpy vectors
 
-
 class Kernel(ABC):
-	@abstractmethod
-	def fit(self, X, K=None, phi=None):
-		pass
-
-	@abstractmethod
-	def make_rkhs_func(self, alpha):
-		pass
-
-	@abstractmethod
-	def K(self, X, X_prime):
-		pass
-
-
-class NaiveKernel(ABC):
 	def __init__(self):
 		self.X = None
 
@@ -42,7 +27,7 @@ class NaiveKernel(ABC):
 		return lambda Xprime: self.K(Xprime, self.X) @ alpha
 
 
-class Linear(NaiveKernel):
+class Linear(Kernel):
 	def __init__(self):
 		super(Linear, self).__init__()
 
@@ -50,7 +35,7 @@ class Linear(NaiveKernel):
 		return X @ X_prime.T
 
 
-class Gaussian(NaiveKernel):
+class Gaussian(Kernel):
 	def __init__(self, alpha=0.1):
 		super(Gaussian, self).__init__()
 		self.alpha = alpha
@@ -160,7 +145,7 @@ class MismatchKernel(FeaturesKernel):
 		return phi.tocsr()
 
 
-class Polynomial(NaiveKernel):
+class Polynomial(Kernel):
 	def __init__(self, degree):
 		super(Polynomial, self).__init__()
 		assert (isinstance(degree, int))
@@ -170,7 +155,7 @@ class Polynomial(NaiveKernel):
 		return (X @ X_prime.T) ** self.degree
 
 
-class SumKernel(NaiveKernel):
+class SumKernel(Kernel):
 	def __init__(self, kernel_1, kernel_2, d1, d2):
 		super(SumKernel, self).__init__()
 		self.kernel_1 = kernel_1
@@ -226,7 +211,7 @@ class FeaturesPolyKernel(FeaturesKernel):
 		return res
 
 
-class PolyKernel(NaiveKernel):
+class PolyKernel(Kernel):
 	def __init__(self, kernel, degree):
 		super(PolyKernel, self).__init__()
 		self.kernel = kernel
