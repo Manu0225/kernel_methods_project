@@ -3,6 +3,8 @@ import numpy as np
 import read_write
 import kernels
 import methods  # .methods as methods
+import scipy
+import scipy.sparse
 
 
 # from multiprocessing import Pool
@@ -92,16 +94,15 @@ def main_val():
 		y = read_write.read_labels(f"data/Ytr{i}.csv")
 
 		# k,m,A
-		kernel_class = kernels.Gaussian
+		kernel_class = kernels.MismatchKernel
 
 		method_class = methods.KernelRidgeRegression
 		# params_kernel = [(i, True) for i in range(4, 16, 2)]  # Spectrum
-		# params_kernel = [(i, 0, 4, True) for i in range(4, 16, 2)]  # Mismatch #max(floor(i / 5)
-		params_kernel = [(10. ** i, True) for i in range(-3, 3, 1)]  # gaussian
-		reg_vals = 10. ** np.arange(-2, 3, 1)
+		params_kernel = [(i, 1, 4, True) for i in range(4, 16, 1)]  # Mismatch #max(floor(i / 5)
+		# params_kernel = [(10. ** i, True) for i in range(-3, 3, 1)]  # gaussian
+		reg_vals = 10. ** np.arange(-2, 3, 1 / 2)
 
-		validation(X, y,
-				   kernel_class, method_class, params_kernel, reg_vals)
+		validation(X, y, kernel_class, method_class, params_kernel, reg_vals)
 
 
 # print(res)
@@ -195,7 +196,7 @@ def extract_kernel(K, feats, sigma, n_train):
 	K_val = K[sigma, :][:, sigma][n_train:, :n_train]
 	if feats is None:
 		feats_train, feats_val = None, None
-	elif isinstance(feats, np.ndarray):
+	elif isinstance(feats, np.ndarray) or isinstance(feats, scipy.sparse.spmatrix):
 		feats_train = feats[sigma][:n_train]
 		feats_val = feats[sigma][n_train:]
 	else:
@@ -244,8 +245,8 @@ def validation(X, y, kernel_class, method_class, params_kernel, reg_vals, n_iter
 			for acc, reg_val, std in zip(avg_acc, reg_vals, std_acc):
 				print(f"{acc:.4f}, {param}, {reg_val}, {std:.3f}")
 		except Exception as e:
-			raise (e)
-			print("petit message pour nous")
+			raise e
+			print("petit message pour nous ♥")
 			print(type(e))
 			print(e)
 
