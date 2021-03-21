@@ -23,8 +23,10 @@ class Kernel(ABC):
 	def K(self, X, X_prime):
 		K = self._K(X, X_prime)
 		if self.normalize:
-			sqrt_inv_diag_K = np.diag(K) ** (-1 / 2)
-			K = sqrt_inv_diag_K[:, None] * ( K * sqrt_inv_diag_K[None, :])
+			diag_K = np.diag(self._K(X,X))
+			diag_K_prime = np.diag(self._K(X_prime,X_prime))
+			# sqrt_inv_diag_K = np.diag(K) ** (-1 / 2)
+			K = diag_K[:, None] * (K * diag_K_prime[None, :])
 		return K
 
 	def fit(self, X, K=None, phi=None):
@@ -32,8 +34,8 @@ class Kernel(ABC):
 		K = self.K(X, X) if K is None else K
 		return K, None
 
-	def make_rkhs_func(self, alpha, K_prime=None, phi_prime=None):
-		return lambda Xprime: (self.K(Xprime, self.X) @ alpha if K_prime is None
+	def apply_rkhs_func(self, alpha, X_prime, K_prime=None, phi_prime=None):
+		return (self.K(X_prime, self.X) @ alpha if K_prime is None
 							   else K_prime @ alpha)
 
 
@@ -84,10 +86,10 @@ class FeaturesKernel(Kernel):
 		K = (self.feats.dot(self.feats.T)).todense().A if K is None else K
 		return K, self.feats
 
-	def make_rkhs_func(self, alpha, K_prime=None, phi_prime=None):
+	def apply_rkhs_func(self, alpha, Xprime, K_prime=None, phi_prime=None):
 		w = self.feats.T.dot(alpha)
-		return lambda Xprime: (self.features(Xprime).dot(w) if phi_prime is None else
-							   phi_prime.dot(w))
+		return (self.features(Xprime).dot(w) if phi_prime is None else
+				phi_prime.dot(w))
 
 
 class SpectrumKernel(FeaturesKernel):
@@ -206,16 +208,16 @@ class SumKernel(Kernel):
 			self.kernel_2.feats = phi_2
 		return K, phi
 
-	def make_rkhs_func(self, alpha, K_prime=None, phi_prime=None):
-		phi_1_prime, phi_2_prime = phi_prime if phi_prime is not None else None, None
-		f1 = self.kernel_1.make_rkhs_func(alpha, K_prime=K_prime, phi_prime=phi_1_prime)
-		f2 = self.kernel_2.make_rkhs_func(alpha, K_prime=K_prime, phi_prime=phi_2_prime)
+	def apply_rkhs_func(self, alpha, X_prime, K_prime=None, phi_prime=None):
+		phi_1_prime, phi_2_prime = phi_prime if phi_prime is not None else (None, None)
+		X_prime_1, X_prime_2 = X_prime[:, :self.d1], X_prime[:, self.d1:]
+		res1 = self.kernel_1.apply_rkhs_func(alpha, X_prime_1, K_prime=K_prime, phi_prime=phi_1_prime)
+		res2 = self.kernel_2.apply_rkhs_func(alpha, X_prime_2, K_prime=K_prime, phi_prime=phi_2_prime)
 
-		def rkhs_func(Xprime):
-			Xprime_1, Xprime_2 = Xprime[:, :self.d1], Xprime[:, self.d1:]
-			return f1(Xprime_1) + f2(Xprime_2)
+		# def rkhs_func(Xprime):
+		# return f1(Xprime_1) + f2(Xprime_2)
 
-		return rkhs_func
+		return res1 + res2
 
 
 class FeaturesPolyKernel(FeaturesKernel):

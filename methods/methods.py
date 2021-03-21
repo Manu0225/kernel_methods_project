@@ -19,8 +19,7 @@ class Method(ABC):
 		self.alpha = self._kernel_learn(K, Y)
 
 	def predict(self, X_prime, K_prime=None, phi_prime=None):
-		rkhs_func = self.kernel.make_rkhs_func(self.alpha, K_prime, phi_prime)
-		f = rkhs_func(X_prime)
+		f = self.kernel.apply_rkhs_func(self.alpha, X_prime, K_prime, phi_prime)
 
 		h = np.sign(f)
 		h[h == 0] = 1
