@@ -8,35 +8,52 @@ import scipy.special
 from tqdm import tqdm
 
 
-# X and X_prime are (n, d) and (m, d) numpy vectors resp.
-# Y is a (n,1) numpy vectors
-
 class Kernel(ABC):
+	"""
+	generic class for kernels.
+
+	each class of kernels will be a subclass of this one, either directly or inderectly through FeatureKernel
+	"""
+
 	def __init__(self, normalize=False):
 		self.normalize = normalize
 		self.X = None
 
 	@abstractmethod
 	def _K(self, X, X_prime):
+		"""
+		Abstract method to be implemented by kernel subclasses,
+		Return the matrix k(X[i], X_prime[j])
+		"""
 		pass
 
 	def K(self, X, X_prime):
+		"""
+		Return the matrix k(X[i], X_prime[j]) potentially with normalization
+		"""
 		K = self._K(X, X_prime)
 		if self.normalize:
-			diag_K = np.diag(self._K(X,X))
-			diag_K_prime = np.diag(self._K(X_prime,X_prime))
-			# sqrt_inv_diag_K = np.diag(K) ** (-1 / 2)
+			diag_K = np.diag(self._K(X, X))
+			diag_K_prime = np.diag(self._K(X_prime, X_prime))
 			K = diag_K[:, None] * (K * diag_K_prime[None, :])
 		return K
 
 	def fit(self, X, K=None, phi=None):
+		"""
+		Return the matrix K(X, X) and can be used by subclasses to store info
+		arguments K and phi are used to pass already computed kernel matrix and features
+		"""
 		self.X = X
 		K = self.K(X, X) if K is None else K
 		return K, None
 
 	def apply_rkhs_func(self, alpha, X_prime, K_prime=None, phi_prime=None):
+		"""
+		Given the points x_1, ..., x_n previously used in fit, apply the function sum_i alpha_i K_{x_i}
+		to Xprime
+		"""
 		return (self.K(X_prime, self.X) @ alpha if K_prime is None
-							   else K_prime @ alpha)
+				else K_prime @ alpha)
 
 
 class Linear(Kernel):
@@ -57,13 +74,31 @@ class Gaussian(Kernel):
 		return np.exp(- self.alpha / 2 * C)
 
 
+class Polynomial(Kernel):
+	def __init__(self, degree, *args):
+		super(Polynomial, self).__init__(*args)
+		assert (isinstance(degree, int))
+		self.degree = degree
+
+	def _K(self, X, X_prime):
+		return (X @ X_prime.T) ** self.degree
+
+
 class FeaturesKernel(Kernel):
+	"""
+	Main abstract class for kernels implemented using features
+	"""
+
 	def __init__(self, *args):
 		super(FeaturesKernel, self).__init__(*args)
 		self.feats = None
 
 	@abstractmethod
 	def _features(self, X):
+		"""
+		Abstract method to be implemented by feature kernel subclasses
+		returns the features for X
+		"""
 		pass
 
 	def _K(self, X, X_prime):
@@ -72,6 +107,9 @@ class FeaturesKernel(Kernel):
 		return (feats.dot(feats_prime.T)).todense().A
 
 	def features(self, X):
+		"""
+		returns the features for X, potentially with normalization
+		"""
 		feats = self._features(X)
 		if self.normalize:
 			norm = scipy.sparse.linalg.norm(feats, axis=-1)
@@ -167,16 +205,6 @@ class MismatchKernel(FeaturesKernel):
 		return phi.tocsr()
 
 
-class Polynomial(Kernel):
-	def __init__(self, degree, *args):
-		super(Polynomial, self).__init__(*args)
-		assert (isinstance(degree, int))
-		self.degree = degree
-
-	def _K(self, X, X_prime):
-		return (X @ X_prime.T) ** self.degree
-
-
 class SumKernel(Kernel):
 	def __init__(self, kernel_1, kernel_2, d1, d2, *args):
 		super(SumKernel, self).__init__(*args)
@@ -214,9 +242,6 @@ class SumKernel(Kernel):
 		res1 = self.kernel_1.apply_rkhs_func(alpha, X_prime_1, K_prime=K_prime, phi_prime=phi_1_prime)
 		res2 = self.kernel_2.apply_rkhs_func(alpha, X_prime_2, K_prime=K_prime, phi_prime=phi_2_prime)
 
-		# def rkhs_func(Xprime):
-		# return f1(Xprime_1) + f2(Xprime_2)
-
 		return res1 + res2
 
 
@@ -232,11 +257,10 @@ class FeaturesPolyKernel(FeaturesKernel):
 		_, p = A.shape
 		assert A.shape == (n, p)
 
-		res_nnz = sum([A.getrow(i).nnz * phi.getrow(i).nnz for i in range(n)])
-		print(f"A nnz = {A.nnz} phi nnz = {phi.nnz} result nnz = {res_nnz}")
-		res = scipy.sparse.vstack([scipy.sparse.kron(A.getrow(i), phi.getrow(i),
-													 format='csr')
-								   for i in range(n)], format='csr')
+		res = scipy.sparse.vstack(
+			[scipy.sparse.kron(A.getrow(i), phi.getrow(i), format='csr')
+			 for i in range(n)],
+			format='csr')
 		assert res.shape == (n, d * p)
 
 		return res
