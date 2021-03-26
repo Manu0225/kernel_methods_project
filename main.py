@@ -20,14 +20,14 @@ def generate_kernel_matrices(X_train, kernel_class, ls_params):
 
 def main_sum():
 	ls_kernel = [
-		kernels.SpectrumKernel(8, True),
-		kernels.SpectrumKernel(6, True),
-		kernels.SpectrumKernel(6, True)
+		kernels.MismatchKernel(12, 1, 4, False),
+		kernels.MismatchKernel(12, 1, 4, False),
+		kernels.MismatchKernel(9, 1, 4, False)
 	]
 	ls_kernel_prime = [
-		kernels.Gaussian(.1, True),
-		kernels.Gaussian(.1, True),
-		kernels.Gaussian(.1, True)
+		kernels.Gaussian(.1, False),
+		kernels.Gaussian(.1, False),
+		kernels.Gaussian(.1, False)
 	]
 	# ls_methods = [
 	# methods.SVM(kernel_0, reg_val=.1),
@@ -98,7 +98,7 @@ def main_val():
 
 		method_class = methods.KernelRidgeRegression
 		# params_kernel = [(i, True) for i in range(4, 16, 2)]  # Spectrum
-		params_kernel = [(i, 1, 4, True) for i in range(4, 16, 1)]  # Mismatch #max(floor(i / 5)
+		params_kernel = [(i, 2, 4, False) for i in [7, 9, 12]]  # Mismatch #max(floor(i / 5)#range(4, 16, 1)
 		# params_kernel = [(10. ** i, True) for i in range(-3, 3, 1)]  # gaussian
 		reg_vals = 10. ** np.arange(-2, 3, 1 / 2)
 
@@ -108,38 +108,22 @@ def main_val():
 # print(res)
 
 
-def main_rendu():
+def main_rendu(accuracy_on_train_set=False):
 	ls_kernel = [
-		kernels.SpectrumKernel(8, True),
-		kernels.SpectrumKernel(6, True),
-		kernels.SpectrumKernel(6, True)
+		kernels.MismatchKernel(12, 2, 4, False),
+		kernels.MismatchKernel(12, 2, 4, True),
+		kernels.MismatchKernel(9, 2, 4, False)
 	]
-	ls_kernel_prime = [
-		kernels.Gaussian(.1, True),
-		kernels.Gaussian(.1, True),
-		kernels.Gaussian(.1, True)
-	]
-	# ls_kernel = [#manque des true
-	# 	kernels.MismatchKernel(10, 1, 4),
-	# 	kernels.MismatchKernel(9, 1, 4),
-	# 	kernels.MismatchKernel(8, 1, 4)
-	# ]
-	ls_reg_val = [0.03162277660168379, 0.03162277660168379, 0.01]
-	ls_methods = [
-		methods.KernelRidgeRegression(
-			kernels.SumKernel(ls_kernel[i], ls_kernel_prime[i], 101, 101, False),
-			reg_val=ls_reg_val[i])
-		for i in range(3)
-		# methods.SVM(ls_kernel[1],
-		# 			reg_val=ls_reg_val[1]),
-		# methods.KernelRidgeRegression(ls_kernel[2],
-		# 							  reg_val=ls_reg_val[2]),
-	]
+
+	ls_reg_val = [100 * 0.03162277660168379, .1, 1000 * 0.03162277660168379]
+	ls_methods = [methods.KernelRidgeRegression(ls_kernel[i], reg_val=ls_reg_val[i])
+				  for i in range(3)]
 	for i in range(3):
 		print("##################",
 			  f"i={i}")
 		# X = read_write.read_X100(f"data/Xtr{i}_mat100.csv")
 		X = read_write.read(f"data/Xtr{i}.csv")
+		# print(X.shape)
 		X_cat = np.concatenate((X, X), axis=-1)
 
 		# X_test = read_write.read_X100(f"data/Xte{i}_mat100.csv")
@@ -150,8 +134,10 @@ def main_rendu():
 		# X_cat = np.concatenate((X, X), axis=-1)
 		# X_test_cat = np.concatenate((X_test, X_test), axis=-1)
 		ls_methods[i].learn(X_cat, y)
-		y_pred = ls_methods[i].predict(X_cat)
-		print(methods.accuracy(y, y_pred))
+		#  FOR ACCURACY ON TRAINING SET
+		if accuracy_on_train_set:
+			y_pred = ls_methods[i].predict(X)
+			print(methods.accuracy(y, y_pred))
 		y_test = ls_methods[i].predict(X_test_cat)
 
 		read_write.write(y_test,
