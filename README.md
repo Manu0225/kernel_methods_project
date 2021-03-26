@@ -1,3 +1,3 @@
-# kernel_methods_project
+# Kernel methods project
  
 To run, execute `start.py`.
