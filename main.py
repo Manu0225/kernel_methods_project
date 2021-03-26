@@ -2,12 +2,9 @@ from math import floor
 import numpy as np
 import read_write
 import kernels
-import methods  # .methods as methods
+import methods
 import scipy
 import scipy.sparse
-
-
-# from multiprocessing import Pool
 
 
 def generate_kernel_matrices(X_train, kernel_class, ls_params):
@@ -47,8 +44,6 @@ def main_sum():
 		# X_test = read_write.read(f"data/Xte{i}.csv")
 
 		y = read_write.read_labels(f"data/Ytr{i}.csv")
-
-		# k,m,A
 
 		kernel_class = kernels.SumKernel
 		method_class = methods.KernelRidgeRegression
@@ -105,8 +100,6 @@ def main_val():
 		validation(X, y, kernel_class, method_class, params_kernel, reg_vals)
 
 
-# print(res)
-
 
 def main_rendu(accuracy_on_train_set=False):
 	ls_kernel = [
@@ -152,21 +145,6 @@ def main():
 	return
 
 
-# linear_kernel = kernels.Linear()
-# # gaussian_kernel = kernels.Gaussian()
-# svm = methods.SVM(linear_kernel, reg_val=1e-1)
-# # = methods.KernelLogisticRegression(linear_kernel, reg_val=1e-3)
-# svm.learn(X_train, y_train)
-# y_pred = svm.predict(X_train)
-# print(methods.accuracy(y_train, y_pred))
-# y_test = svm.predict(X_test)
-# # print(y_test)
-# read_write.write(y_test,
-# 				 "predictions/Yte.csv",
-# 				 offset=i * 1000,
-# 				 append=(i != 0))
-
-
 def split(X, y, proportion_train):
 	N = len(X)
 	assert (len(y) == N)
@@ -192,20 +170,7 @@ def extract_kernel(K, feats, sigma, n_train):
 	return K_train, feats_train, K_val, feats_val
 
 
-# def eval(X_train, y_train, X_val, y_val, param, reg_val, kernel_class, method_class):
-# 	kernel = kernel_class(*param)
-# 	method = method_class(kernel, reg_val=reg_val)
-# 	method.learn(X_train, y_train)
-# 	y_pred = method.predict(X_val)
-# 	acc = methods.accuracy(y_val, y_pred)
-# 	print(acc, param, reg_val)
-# 	return acc, param, reg_val
-
-
 def validation(X, y, kernel_class, method_class, params_kernel, reg_vals, n_iters=5):
-	# best_acc = 0
-	# best_param = None
-	# best_reg_val = None
 	generator_kernel_matrices = \
 		generate_kernel_matrices(X, kernel_class, ls_params=params_kernel)
 	for param, (K, phi) in zip(params_kernel, generator_kernel_matrices):
@@ -235,15 +200,6 @@ def validation(X, y, kernel_class, method_class, params_kernel, reg_vals, n_iter
 			print("petit message pour nous ♥")
 			print(type(e))
 			print(e)
-
-
-# if acc > best_acc:
-# 	best_acc = acc
-# 	best_param = param
-# 	best_reg_val = reg_val
-
-
-# return best_acc, best_param, best_reg_val
 
 
 if __name__ == '__main__':
