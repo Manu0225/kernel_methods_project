@@ -117,21 +117,21 @@ def main_rendu(accuracy_on_train_set=False):
 		# X = read_write.read_X100(f"data/Xtr{i}_mat100.csv")
 		X = read_write.read(f"data/Xtr{i}.csv")
 		# print(X.shape)
-		X_cat = np.concatenate((X, X), axis=-1)
+		# X_cat = np.concatenate((X, X), axis=-1)
 
 		# X_test = read_write.read_X100(f"data/Xte{i}_mat100.csv")
 		X_test = read_write.read(f"data/Xte{i}.csv")
-		X_test_cat = np.concatenate((X_test, X_test), axis=-1)
+		# X_test_cat = np.concatenate((X_test, X_test), axis=-1)
 
 		y = read_write.read_labels(f"data/Ytr{i}.csv")
 		# X_cat = np.concatenate((X, X), axis=-1)
 		# X_test_cat = np.concatenate((X_test, X_test), axis=-1)
-		ls_methods[i].learn(X_cat, y)
+		ls_methods[i].learn(X, y)
 		#  FOR ACCURACY ON TRAINING SET
 		if accuracy_on_train_set:
 			y_pred = ls_methods[i].predict(X)
 			print(methods.accuracy(y, y_pred))
-		y_test = ls_methods[i].predict(X_test_cat)
+		y_test = ls_methods[i].predict(X_test)
 
 		read_write.write(y_test,
 						 "predictions/Yte.csv",
